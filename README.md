@@ -1,2 +1,1 @@
-node-bunyan-extras
-==================
+# bunyan-extras

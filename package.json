@@ -1,5 +1,5 @@
 {
-  "name": "node-bunyan-extras",
+  "name": "bunyan-extras",
   "version": "0.1.0",
   "description": "bunyan logger extras",
   "author": "Paul Vollmer",

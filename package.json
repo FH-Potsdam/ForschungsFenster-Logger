@@ -1,6 +1,6 @@
 {
   "name": "bunyan-extras",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "bunyan logger extras",
   "author": "Paul Vollmer",
   "license": "MIT",

@@ -69,7 +69,10 @@ function list(req, res, next) {
 
   var apiModel = new ApiModel(res);
   var logs = fs.readdirSync(process.cwd()+'/'+dir);
-  apiModel.setData(logs);
+  apiModel.setData({
+    latest_log: latestLog,
+    logs: logs
+  });
 
   res.json(apiModel.getStore());
   return next();

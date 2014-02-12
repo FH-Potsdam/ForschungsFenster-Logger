@@ -1,8 +1,11 @@
 {
-  "name": "bunyan-extras",
-  "version": "0.1.1",
-  "description": "bunyan logger extras",
-  "author": "Paul Vollmer",
+  "name": "Forschungsfenster-Logger",
+  "version": "0.2.0",
+  "description": "Logger utility functions for the \"Forschungsfenster\" software components.",
+  "author": "FH-Potsdam",
+  "contributors": [
+    { "name": "Paul Vollmer", "email": "paul.vollmer@fh-potsdam.de" }
+  ],
   "license": "MIT",
   "homepage": "https://github.com/WrongEntertainment/node-bunyan-extras",
   "repository": {

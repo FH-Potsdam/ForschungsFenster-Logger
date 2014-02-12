@@ -10,11 +10,35 @@ var ApiModel = require('api-model');
 var dir = 'logs';
 var latestLog = (new Date().getTime())+'.log';
 
+// create the logger...
+exports.initGlobalLogVar = function(Logger, dirname, options) {
+  checkDir(dirname);
+
+  GLOBAL.log = new Logger({
+    name: options.name,
+    streams: [
+      {
+        stream: process.stdout,
+        level: 'debug'
+      },
+      {
+        path: filepath(),
+        level: 'debug' // trace for logging all kind of messages.
+      }
+    ],
+    serializers: {
+      req: Logger.stdSerializers.req,
+      res: Logger.stdSerializers.res
+    }
+  });
+  log.info('Initialize Logger');
+};
+
 /**
  * Check if a logs directory exist.
  * If no dir exists, create one.
  */
-exports.checkDir = function(dirname) {
+function checkDir(dirname) {
   if (dirname !== undefined) {
     dir = dirname;
   }
@@ -23,12 +47,16 @@ exports.checkDir = function(dirname) {
   }
 };
 
+exports.checkDir = checkDir;
+
 /**
  * Get the log filepath.
  */
-exports.filepath = function() {
+function filepath() {
   return dir+'/'+latestLog;
 };
+
+exports.filepath = filepath;
 
 /**
  * The routes

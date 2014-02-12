@@ -7,19 +7,19 @@
     { "name": "Paul Vollmer", "email": "paul.vollmer@fh-potsdam.de" }
   ],
   "license": "MIT",
-  "homepage": "https://github.com/WrongEntertainment/node-bunyan-extras",
+  "homepage": "https://github.com/FH-Potsdam/Forschungsfenster-Logger",
   "repository": {
     "type": "git",
-    "url": "https://github.com/WrongEntertainment/node-bunyan-extras.git"
+    "url": "https://github.com/FH-Potsdam/Forschungsfenster-Logger.git"
   },
   "bugs": {
-    "url": "https://github.com/WrongEntertainment/node-bunyan-extras/issues"
+    "url": "https://github.com/FH-Potsdam/Forschungsfenster-Logger/issues"
   },
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "api-model": "https://github.com/WrongEntertainment/node-api-model/archive/v0.2.1.tar.gz"
+    "api-model": "https://github.com/subtub/node-api-model/archive/v0.2.1.tar.gz"
   }
 }

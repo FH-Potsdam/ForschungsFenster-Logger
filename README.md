@@ -1,6 +1,6 @@
-# Forschungsfenster-Logger
+# ForschungsFenster-Logger
 
 
-Logger utility functions for the "Forschungsfenster" software components.
+Logger utility functions for the "ForschungsFenster" software components.
 
 Bunyan was used as the logger module.

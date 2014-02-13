@@ -5,14 +5,36 @@ var fs = require('fs');
 var ApiModel = require('api-model');
 
 /**
- * Variables
+ * The Logger class.
  */
-var dir = 'logs';
-var latestLog = (new Date().getTime())+'.log';
+function ForschungsFensterLogger() {
+  this.dir = 'logs';
+  this.suffix = '.log';
+  this.latestLog = (new Date().getTime());
+  this.latestLogFile = this.latestLog+this.suffix;
+  // Get the log filepath.
+  this.path = this.dir+'/'+this.latestLog+this.suffix;
+  // small verbose log boolean to trigger on debug information.
+  this.verboseLog = true;
+  this.verboseInfo('dir       = '+this.dir);
+  this.verboseInfo('latestLog = '+this.latestLog);
+  this.verboseInfo('suffix    = '+this.suffix);
+  this.verboseInfo('path      = '+this.path);
+}
 
-// create the logger...
-exports.initGlobalLogVar = function(Logger, dirname, options) {
-  checkDir(dirname);
+module.exports = ForschungsFensterLogger;
+
+/**
+ * create the logger...
+ * 
+ * @param  {Object} options The configuration.
+ * @return {[type]} [description]
+ */
+ForschungsFensterLogger.prototype.init = function(Logger, options) {
+  this.verboseInfo('init = '+options);
+  var self = this;
+
+  self.checkDir(self.dir);
 
   GLOBAL.log = new Logger({
     name: options.name,
@@ -22,7 +44,7 @@ exports.initGlobalLogVar = function(Logger, dirname, options) {
         level: 'debug'
       },
       {
-        path: filepath(),
+        path: self.path,
         level: 'debug' // trace for logging all kind of messages.
       }
     ],
@@ -31,48 +53,99 @@ exports.initGlobalLogVar = function(Logger, dirname, options) {
       res: Logger.stdSerializers.res
     }
   });
-  log.info('Initialize Logger');
+
+  // First log with the global logger...
+  log.debug('Logger Initialized');
+  return options;
 };
+
 
 /**
  * Check if a logs directory exist.
  * If no dir exists, create one.
+ *
+ * return true if directory exists
  */
-function checkDir(dirname) {
+ForschungsFensterLogger.prototype.checkDir = function(dirname) {
+  console.log('checkDir');
   if (dirname !== undefined) {
-    dir = dirname;
+    this.dir = dirname;
   }
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir);
+
+  if (!fs.existsSync(this.dir)) {
+    fs.mkdirSync(this.dir);
+    return false;
+  } else {
+    return true;
   }
 };
 
-exports.checkDir = checkDir;
-
-/**
- * Get the log filepath.
- */
-function filepath() {
-  return dir+'/'+latestLog;
-};
-
-exports.filepath = filepath;
 
 /**
  * The routes
  */
-exports.routes = function(express) {
-  express.get('/logs', list);
-  express.get('/logs/latest', latestFile);
-  express.get('/logs/:file', file);
-};
+ForschungsFensterLogger.prototype.routes = function(express, options) {
+  var self = this;
+  var tmpBaseUrl = options.baseUrl;
+  console.log('baseUrl: ', tmpBaseUrl);
 
-/**
- * @api {get} /logs GET logs
+  /**
+   * @api {get} /logs GET logs
+   * @apiVersion 0.1.0
+   * @apiGroup logs
+   * @apiDescription
+   *     Send a list of log files.
+   *
+   * @apiSuccessExample Success-Response:
+   *     HTTP/1.1 200 OK
+   *     {
+   *       "meta": {
+   *         "code": 200,
+   *         "status": "OK"
+   *       },
+   *       "data": [
+   *         "array",
+   *         "of",
+   *         "log",
+   *         "files"
+   *       ]
+   *     }
+   *
+   * @apiExample Example usage:
+   *     curl -i http://localhost:3000/logs
+   */
+  express.get(tmpBaseUrl, function(req, res) {
+    log.info('GET /logs');
+    
+    var tmpLogsDir = process.cwd()+'/'+self.dir;
+    console.log('tmpLogsDir', tmpLogsDir);
+    var logsDir = fs.readdirSync(tmpLogsDir);
+
+    var apiModel = new ApiModel(res);
+
+    var tmpData = {
+      latest_log: self.latestLog,
+      logs: 'logs'
+    };
+
+    tmpData.logs = new Array(logsDir.length);
+    for (var i = 0; i < logsDir.length; i++) {
+      tmpData.logs[i] = {
+        filename: logsDir[i],
+        url: 'http://'+req.headers.host+tmpBaseUrl+'/file/'+logsDir[i]
+      };
+    };
+
+    apiModel.setData(tmpData);
+    res.json(apiModel.getStore());
+  });
+
+  /**
+ * @api {get} /logs/:file GET log file
  * @apiVersion 0.1.0
  * @apiGroup logs
  * @apiDescription
- *     Send a list of log files.
+ *     Response the log file as json.
  *
  * @apiSuccessExample Success-Response:
  *     HTTP/1.1 200 OK
@@ -90,23 +163,27 @@ exports.routes = function(express) {
  *     }
  *
  * @apiExample Example usage:
- *     curl -i http://localhost:3000/logs
+ *     curl -i http://localhost:3000/logs/:file
  */
-function list(req, res, next) {
-  log.info('GET /logs');
-
-  var apiModel = new ApiModel(res);
-  var logs = fs.readdirSync(process.cwd()+'/'+dir);
-  apiModel.setData({
-    latest_log: latestLog,
-    logs: logs
+  express.get(tmpBaseUrl+'/file/:file', function(req, res) {
+    log.info('GET /logs/'+req.params.file+'/');
+    var tmp = logfile(self.dir, req.params.file);
+    res.json(tmp);
   });
 
-  res.json(apiModel.getStore());
-  return next();
+  express.get(tmpBaseUrl+'/latest', function(req, res) {
+    log.info('GET /logs/latest');
+    console.log('TODO: redirect to logs/filename.log');
+
+    //var tmp = logfile(self.dir, self.latestLogFile);
+    res.json('tmp');
+    return next();
+  });
+
 };
 
-function logfile(filename) {
+
+function logfile(dir, filename) {
   var filepath = process.cwd()+'/'+dir+'/'+filename;
   var logs = fs.readFileSync(filepath, 'utf8');
   var splitted = logs.split('\n');
@@ -136,7 +213,7 @@ function logfile(filename) {
  * @apiExample Example usage:
  *     curl -i http://localhost:3000/logs/latest
  */
-function latestFile(req, res, next) {
+ForschungsFensterLogger.prototype.latestFile = function(req, res, next) {
   log.info('GET /logs/latest');
   console.log('TODO: redirect to logs/filename.log');
 
@@ -145,34 +222,12 @@ function latestFile(req, res, next) {
   return next();
 };
 
+
 /**
- * @api {get} /logs/:file GET log file
- * @apiVersion 0.1.0
- * @apiGroup logs
- * @apiDescription
- *     Response the log file as json.
- *
- * @apiSuccessExample Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *       "meta": {
- *         "code": 200,
- *         "status": "OK"
- *       },
- *       "data": [
- *         "array",
- *         "of",
- *         "log",
- *         "files"
- *       ]
- *     }
- *
- * @apiExample Example usage:
- *     curl -i http://localhost:3000/logs/:file
+ * internal verbose log
  */
-function file(req, res, next) {
-  log.info('GET /logs/'+req.params.file+'/');
-  var tmp = logfile(req.params.file);
-  res.json(tmp);
-  return next();
+ForschungsFensterLogger.prototype.verboseInfo = function(msg) {
+  if (this.verboseLog === true) {
+    console.log('LOGGER-INFO: '+msg);
+  };
 };

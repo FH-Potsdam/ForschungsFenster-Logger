@@ -1,6 +1,6 @@
 {
-  "name": "Forschungsfenster-Logger",
-  "version": "0.2.0",
+  "name": "ForschungsFenster-Logger",
+  "version": "0.2.1a",
   "description": "Logger utility functions for the \"Forschungsfenster\" software components.",
   "author": "FH-Potsdam",
   "contributors": [

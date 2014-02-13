@@ -8,31 +8,44 @@ var ApiModel = require('api-model');
  * The Logger class.
  */
 function ForschungsFensterLogger() {
+  // The directory we want to log
   this.dir = 'logs';
+
+  // The logfile suffix
   this.suffix = '.log';
+  
+  // Latest log name
   this.latestLog = (new Date().getTime());
+  
+  // Latest logfile name
   this.latestLogFile = this.latestLog+this.suffix;
-  // Get the log filepath.
-  this.path = this.dir+'/'+this.latestLog+this.suffix;
+  
   // small verbose log boolean to trigger on debug information.
-  this.verboseLog = true;
-  this.verboseInfo('dir       = '+this.dir);
-  this.verboseInfo('latestLog = '+this.latestLog);
-  this.verboseInfo('suffix    = '+this.suffix);
-  this.verboseInfo('path      = '+this.path);
+  this.verboseLog = false;
 }
 
 module.exports = ForschungsFensterLogger;
 
+
 /**
- * create the logger...
+ * Initialize the logger (create directory, init bunyan...)
  * 
  * @param  {Object} options The configuration.
  * @return {[type]} [description]
  */
 ForschungsFensterLogger.prototype.init = function(Logger, options) {
-  this.verboseInfo('init = '+options);
   var self = this;
+
+  if (options !== undefined) {
+    if (options.dir !== undefined) self.dir = options.dir;
+    if (options.latestLog !== undefined) self.latestLog = options.latestLog;
+    if (options.suffix !== undefined) self.suffix = options.suffix;
+    if (options.verboseLog !== undefined) self.verboseLog = options.verboseLog;
+  };
+  self.verboseInfo('dir         = '+self.dir);
+  self.verboseInfo('latestLog   = '+self.latestLog);
+  self.verboseInfo('suffix      = '+self.suffix);
+  self.verboseInfo('filedir     = '+self.getFiledir());
 
   self.checkDir(self.dir);
 
@@ -44,7 +57,7 @@ ForschungsFensterLogger.prototype.init = function(Logger, options) {
         level: 'debug'
       },
       {
-        path: self.path,
+        path: self.getFiledir(),
         level: 'debug' // trace for logging all kind of messages.
       }
     ],
@@ -61,21 +74,45 @@ ForschungsFensterLogger.prototype.init = function(Logger, options) {
 
 
 /**
+ * internal verbose log
+ */
+ForschungsFensterLogger.prototype.verboseInfo = function(msg) {
+  if (this.verboseLog === true) {
+    console.log('LOGGER-INFO: '+msg);
+  };
+};
+
+
+/**
+ * Get the filepath of the logs directory.
+ * 
+ * @return {String} The Filepath.
+ */
+ForschungsFensterLogger.prototype.getFiledir = function() {
+  return this.dir+'/'+this.latestLog+this.suffix;
+};
+
+
+/**
  * Check if a logs directory exist.
  * If no dir exists, create one.
  *
  * return true if directory exists
  */
 ForschungsFensterLogger.prototype.checkDir = function(dirname) {
-  console.log('checkDir');
   if (dirname !== undefined) {
     this.dir = dirname;
   }
 
+  // if directory diesn't exists...
   if (!fs.existsSync(this.dir)) {
+    this.verboseInfo('checkDir: create directory "'+this.dir+'"');
     fs.mkdirSync(this.dir);
     return false;
-  } else {
+  }
+  // if directory exists, do nothing
+  else {
+    this.verboseInfo('checkDir: "'+this.dir+'"" exists.');
     return true;
   }
 };
@@ -87,7 +124,7 @@ ForschungsFensterLogger.prototype.checkDir = function(dirname) {
 ForschungsFensterLogger.prototype.routes = function(express, options) {
   var self = this;
   var tmpBaseUrl = options.baseUrl;
-  console.log('baseUrl: ', tmpBaseUrl);
+  //console.log('baseUrl: ', tmpBaseUrl);
 
   /**
    * @api {get} /logs GET logs
@@ -220,14 +257,4 @@ ForschungsFensterLogger.prototype.latestFile = function(req, res, next) {
   var tmp = logfile(latestLog);
   res.json(tmp);
   return next();
-};
-
-
-/**
- * internal verbose log
- */
-ForschungsFensterLogger.prototype.verboseInfo = function(msg) {
-  if (this.verboseLog === true) {
-    console.log('LOGGER-INFO: '+msg);
-  };
 };

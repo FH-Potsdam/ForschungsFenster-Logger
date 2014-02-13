@@ -207,6 +207,11 @@ ForschungsFensterLogger.prototype.routes = function(express, options) {
  */
   express.get(tmpBaseUrl+'/file/:file', function(req, res) {
     log.info('GET '+tmpBaseUrl+'/'+req.params.file+'/');
+
+    console.log(req.query);
+    // TODO: disable data items
+    // http...13719.log?name=false&pid=false&level=false&v=false
+    
     var tmp = logfile(self.dir, req.params.file);
     res.json(tmp);
   });

@@ -152,16 +152,19 @@ ForschungsFensterLogger.prototype.routes = function(express, options) {
    *     curl -i http://localhost:3000/logs
    */
   express.get(tmpBaseUrl, function(req, res) {
-    log.info('GET /logs');
+    log.info('GET '+tmpBaseUrl);
     
     var tmpLogsDir = process.cwd()+'/'+self.dir;
-    console.log('tmpLogsDir', tmpLogsDir);
+    //console.log('tmpLogsDir', tmpLogsDir);
     var logsDir = fs.readdirSync(tmpLogsDir);
 
     var apiModel = new ApiModel(res);
 
     var tmpData = {
-      latest_log: self.latestLog,
+      latest_log: {
+        filename: self.latestLogFile,
+        url: 'http://'+req.headers.host+tmpBaseUrl+'/file/'+self.latestLogFile
+      },
       logs: 'logs'
     };
 
@@ -203,13 +206,13 @@ ForschungsFensterLogger.prototype.routes = function(express, options) {
  *     curl -i http://localhost:3000/logs/:file
  */
   express.get(tmpBaseUrl+'/file/:file', function(req, res) {
-    log.info('GET /logs/'+req.params.file+'/');
+    log.info('GET '+tmpBaseUrl+'/'+req.params.file+'/');
     var tmp = logfile(self.dir, req.params.file);
     res.json(tmp);
   });
 
   express.get(tmpBaseUrl+'/latest', function(req, res) {
-    log.info('GET /logs/latest');
+    log.info('GET '+tmpBaseUrl+'/latest');
     console.log('TODO: redirect to logs/filename.log');
 
     //var tmp = logfile(self.dir, self.latestLogFile);
@@ -251,7 +254,7 @@ function logfile(dir, filename) {
  *     curl -i http://localhost:3000/logs/latest
  */
 ForschungsFensterLogger.prototype.latestFile = function(req, res, next) {
-  log.info('GET /logs/latest');
+  log.info('GET '+tmpBaseUrl+'/latest');
   console.log('TODO: redirect to logs/filename.log');
 
   var tmp = logfile(latestLog);

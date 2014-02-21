@@ -5,14 +5,49 @@ var fs = require('fs');
 var ApiModel = require('api-model');
 
 /**
- * Variables
+ * The Logger class.
  */
-var dir = 'logs';
-var latestLog = (new Date().getTime())+'.log';
+function ForschungsFensterLogger() {
+  // The directory we want to log.
+  this.dir = 'logs';
 
-// create the logger...
-exports.initGlobalLogVar = function(Logger, dirname, options) {
-  checkDir(dirname);
+  // The logfile suffix.
+  this.suffix = '.log';
+  
+  // Latest log name. set to current unix timestamp.
+  this.latestLog = (new Date().getTime());
+  
+  // Latest logf name plus suffix.
+  this.latestLogFile = this.latestLog+this.suffix;
+  
+  // small verbose log boolean to trigger on debug information.
+  this.verboseLog = false;
+}
+
+module.exports = ForschungsFensterLogger;
+
+
+/**
+ * Initialize the logger (create directory, init bunyan...)
+ * 
+ * @param  {Object} options The configuration.
+ * @return {[type]} [description]
+ */
+ForschungsFensterLogger.prototype.init = function(Logger, options) {
+  var self = this;
+
+  if (options !== undefined) {
+    if (options.dir !== undefined) self.dir = options.dir;
+    if (options.latestLog !== undefined) self.latestLog = options.latestLog;
+    if (options.suffix !== undefined) self.suffix = options.suffix;
+    if (options.verboseLog !== undefined) self.verboseLog = options.verboseLog;
+  };
+  self.verboseInfo('dir         = '+self.dir);
+  self.verboseInfo('latestLog   = '+self.latestLog);
+  self.verboseInfo('suffix      = '+self.suffix);
+  self.verboseInfo('filedir     = '+self.getFiledir());
+
+  self.checkDir(self.dir);
 
   GLOBAL.log = new Logger({
     name: options.name,
@@ -22,7 +57,7 @@ exports.initGlobalLogVar = function(Logger, dirname, options) {
         level: 'debug'
       },
       {
-        path: filepath(),
+        path: self.getFiledir(),
         level: 'debug' // trace for logging all kind of messages.
       }
     ],
@@ -31,41 +66,94 @@ exports.initGlobalLogVar = function(Logger, dirname, options) {
       res: Logger.stdSerializers.res
     }
   });
-  log.info('Initialize Logger');
+
+  // First log with the global logger...
+  log.debug('Logger Initialized');
+  return options;
 };
+
+
+/**
+ * internal verbose log
+ */
+ForschungsFensterLogger.prototype.verboseInfo = function(msg) {
+  if (this.verboseLog === true) {
+    console.log('LOGGER-INFO: '+msg);
+  };
+};
+
+
+/**
+ * Get the filepath of the logs directory.
+ * 
+ * @return {String} The Filepath.
+ */
+ForschungsFensterLogger.prototype.getFiledir = function() {
+  return this.dir+'/'+this.latestLog+this.suffix;
+};
+
 
 /**
  * Check if a logs directory exist.
  * If no dir exists, create one.
+ *
+ * return {Boolean} true if directory exists
  */
-function checkDir(dirname) {
+ForschungsFensterLogger.prototype.checkDir = function(dirname) {
   if (dirname !== undefined) {
-    dir = dirname;
+    this.dir = dirname;
   }
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir);
+
+  // if directory diesn't exists...
+  if (!fs.existsSync(this.dir)) {
+    this.verboseInfo('checkDir: create directory "'+this.dir+'"');
+    fs.mkdirSync(this.dir);
+    return false;
+  }
+  // if directory exists, do nothing
+  else {
+    this.verboseInfo('checkDir: "'+this.dir+'"" exists.');
+    return true;
   }
 };
 
-exports.checkDir = checkDir;
 
 /**
- * Get the log filepath.
+ * [logfile description]
+ * @param  {[type]} dir      [description]
+ * @param  {[type]} filename [description]
+ * @return {[type]}          [description]
  */
-function filepath() {
-  return dir+'/'+latestLog;
-};
+function logfile(dir, filename) {
+  var filepath = process.cwd()+'/'+dir+'/'+filename;
+  var logs = fs.readFileSync(filepath, 'utf8');
+  var splitted = logs.split('\n');
+  var tmp = [];
+  for (var i = 0; i < splitted.length-1; i++) {
+    var parsed = JSON.parse(splitted[i]);
+    tmp.push(parsed);
+  };
+  return tmp;
+}
 
-exports.filepath = filepath;
 
 /**
  * The routes
+ *
+ * @param  {[type]} express [description]
+ * @param  {[type]} options [description]
+ * @return {[type]}         [description]
  */
-exports.routes = function(express) {
-  express.get('/logs', list);
-  express.get('/logs/latest', latestFile);
-  express.get('/logs/:file', file);
+ForschungsFensterLogger.prototype.routes = function(express, options) {
+  var self = this;
+  var tmpBaseUrl = options.baseUrl;
+  //console.log('baseUrl: ', tmpBaseUrl);
+
+  self.expressRouteLogs(express, options);
+  self.expressRouteFile(express, options);
+  self.expressRouteLatestFile(express, options);
 };
+
 
 /**
  * @api {get} /logs GET logs
@@ -92,58 +180,38 @@ exports.routes = function(express) {
  * @apiExample Example usage:
  *     curl -i http://localhost:3000/logs
  */
-function list(req, res, next) {
-  log.info('GET /logs');
+ForschungsFensterLogger.prototype.expressRouteLogs = function(express, options) {
+  var self = this;
+  express.get(options.baseUrl, function(req, res) {
+    //log.info('GET '+tmpBaseUrl);
+    
+    var tmpLogsDir = process.cwd()+'/'+self.dir;
+    //console.log('tmpLogsDir', tmpLogsDir);
+    var logsDir = fs.readdirSync(tmpLogsDir);
 
-  var apiModel = new ApiModel(res);
-  var logs = fs.readdirSync(process.cwd()+'/'+dir);
-  apiModel.setData({
-    latest_log: latestLog,
-    logs: logs
+    var apiModel = new ApiModel(res);
+
+    var tmpData = {
+      latest_log: {
+        filename: self.latestLogFile,
+        url: 'http://'+req.headers.host+options.baseUrl+'/file/'+self.latestLogFile
+      },
+      logs: 'logs'
+    };
+
+    tmpData.logs = new Array(logsDir.length);
+    for (var i = 0; i < logsDir.length; i++) {
+      tmpData.logs[i] = {
+        filename: logsDir[i],
+        url: 'http://'+req.headers.host+options.baseUrl+'/file/'+logsDir[i]
+      };
+    };
+
+    apiModel.setData(tmpData);
+    res.json(apiModel.getStore());
   });
-
-  res.json(apiModel.getStore());
-  return next();
 };
 
-function logfile(filename) {
-  var filepath = process.cwd()+'/'+dir+'/'+filename;
-  var logs = fs.readFileSync(filepath, 'utf8');
-  var splitted = logs.split('\n');
-  var tmp = [];
-
-  for (var i = 0; i < splitted.length-1; i++) {
-    var parsed = JSON.parse(splitted[i]);
-    tmp.push(parsed);
-  };
-  //console.log(tmp);
-  
-  return tmp;
-}
-
-/**
- * @api {get} /logs/latest GET latest log file
- * @apiVersion 0.1.0
- * @apiGroup logs
- * @apiDescription
- *     Response the latest log file.
- *
- * @apiSuccessExample Success-Response:
- *     HTTP/1.1 200 OK
- *     {
- *     }
- *
- * @apiExample Example usage:
- *     curl -i http://localhost:3000/logs/latest
- */
-function latestFile(req, res, next) {
-  log.info('GET /logs/latest');
-  console.log('TODO: redirect to logs/filename.log');
-
-  var tmp = logfile(latestLog);
-  res.json(tmp);
-  return next();
-};
 
 /**
  * @api {get} /logs/:file GET log file
@@ -170,9 +238,41 @@ function latestFile(req, res, next) {
  * @apiExample Example usage:
  *     curl -i http://localhost:3000/logs/:file
  */
-function file(req, res, next) {
-  log.info('GET /logs/'+req.params.file+'/');
-  var tmp = logfile(req.params.file);
-  res.json(tmp);
-  return next();
+ForschungsFensterLogger.prototype.expressRouteFile = function(express, options) {
+  var self = this;
+  express.get(options.baseUrl+'/file/:file', function(req, res) {
+    //log.info('GET '+tmpBaseUrl+'/'+req.params.file+'/');
+
+    //console.log(req.query);
+    // TODO: disable data items
+    // http...13719.log?name=false&pid=false&level=false&v=false
+    
+    var tmp = logfile(self.dir, req.params.file);
+    res.json(tmp);
+  });
+};
+
+
+/**
+ * @api {get} /logs/latest GET latest log file
+ * @apiVersion 0.1.0
+ * @apiGroup logs
+ * @apiDescription
+ *     Response the latest log file.
+ *
+ * @apiSuccessExample Success-Response:
+ *     HTTP/1.1 200 OK
+ *     {
+ *     }
+ *
+ * @apiExample Example usage:
+ *     curl -i http://localhost:3000/logs/latest
+ */
+ForschungsFensterLogger.prototype.expressRouteLatestFile = function(express, options) {
+  var self = this;
+  express.get(options.baseUrl+'/latest', function(req, res) {
+    //log.info('GET '+tmpBaseUrl+'/latest');
+    req.method = 'get'; 
+    res.redirect(options.baseUrl+'/file/'+self.latestLogFile); 
+  });
 };

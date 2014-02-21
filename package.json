@@ -17,9 +17,12 @@
   },
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node node_modules/.bin/mocha -R spec"
   },
   "dependencies": {
     "api-model": "https://github.com/subtub/node-api-model/archive/v0.2.1.tar.gz"
+  },
+  "devDependencies": {
+    "mocha": "1.17.1"
   }
 }
